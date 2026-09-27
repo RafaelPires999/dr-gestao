@@ -1,1 +1,18 @@
+# Maven
 target/
+
+# NetBeans
+nbproject/private/
+nbactions.xml
+nb-configuration.xml
+
+# Configuração local do banco (contém senha)
+db.properties
+
+# Sistema operacional
+Thumbs.db
+.DS_Store
+
+# Logs e backups locais
+*.log
+*.bak
