@@ -1,4 +1,7 @@
-CREATE DATABASE drgestao
+IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = 'drgestao')
+BEGIN
+    CREATE DATABASE drgestao;
+END
 GO
 
 USE drgestao
@@ -190,5 +193,134 @@ CREATE TABLE comanda(
 	status VARCHAR(10) NOT NULL DEFAULT 'ABERTA',
 	valor_total DECIMAL(10,2) NOT NULL DEFAULT 0,
 	CONSTRAINT CK_comanda_status CHECK (status in ('ABERTA', 'FECHADA'))
+)
+GO
+
+CREATE TABLE item_comanda(
+	id_item_comanda INT NOT NULL IDENTITY(1,1) PRIMARY KEY,
+	id_comanda INT NOT NULL FOREIGN KEY REFERENCES comanda(id_comanda),
+	id_produto INT NOT NULL FOREIGN KEY REFERENCES produto(id_produto),
+	id_usuario INT NOT NULL FOREIGN KEY REFERENCES usuario(id_usuario),
+	quantidade INT NOT NULL,
+	valor_unitario DECIMAL(10,2) NOT NULL,
+	data_hora_lancamento DATETIME2(0) NOT NULL DEFAULT SYSDATETIME(),
+	CONSTRAINT CK_item_comanda_quantidade CHECK (quantidade > 0)
+)
+GO
+
+CREATE TABLE forma_pagamento(
+	id_forma_pagamento INT NOT NULL IDENTITY(1,1) PRIMARY KEY,
+	descricao VARCHAR(30) NOT NULL UNIQUE,
+	codigo_sefaz CHAR(2) NULL
+)
+GO
+
+CREATE TABLE movimento_caixa(
+	id_movimento_caixa INT NOT NULL IDENTITY(1,1) PRIMARY KEY,
+	id_usuario INT NOT NULL FOREIGN KEY REFERENCES usuario(id_usuario),
+	tipo VARCHAR(10) NOT NULL,
+	valor DECIMAL(10,2) NOT NULL,
+	data_hora DATETIME2(0) NOT NULL DEFAULT SYSDATETIME(),
+	observacao VARCHAR(200) NULL,
+	CONSTRAINT CK_movimentacao_caixa_tipo CHECK (tipo in('SANGRIA', 'SUPRIMENTO')),
+	CONSTRAINT CK_movimentacao_caixa_valor CHECK (valor > 0)
+)
+GO
+
+CREATE TABLE venda(
+	id_venda INT NOT NULL IDENTITY(1,1) PRIMARY KEY,
+	id_usuario INT NOT NULL FOREIGN KEY REFERENCES usuario(id_usuario),
+	id_cliente INT NULL FOREIGN KEY REFERENCES cliente(id_cliente),
+	id_comanda INT NULL FOREIGN KEY REFERENCES comanda(id_comanda),
+	data_hora DATETIME2(0) NOT NULL DEFAULT SYSDATETIME(),
+	tipo VARCHAR(10) NOT NULL,
+	valor_total DECIMAL(10,2) NOT NULL,
+	troco DECIMAL(10,2) NOT NULL DEFAULT 0,
+	cpf_nota VARCHAR(14) NULL,
+	status VARCHAR(12) NOT NULL DEFAULT 'FINALIZADA',
+	data_hora_cancelamento DATETIME2(0) NULL,
+	id_usuario_cancelamento INT NULL FOREIGN KEY REFERENCES usuario(id_usuario),
+	motivo_cancelamento VARCHAR(200) NULL,
+	CONSTRAINT CK_venda_tipo CHECK (tipo in ('BALCAO', 'COMANDA')),
+	CONSTRAINT CK_venda_status CHECK (status in ('FINALIZADA', 'CANCELADA')),
+	CONSTRAINT CK_venda_valor_total CHECK (valor_total >= 0)
+)
+GO
+
+CREATE INDEX IX_venda_data_hora ON venda(data_hora);
+GO
+
+CREATE TABLE item_venda(
+	id_item_venda INT NOT NULL IDENTITY(1,1) PRIMARY KEY,
+	id_venda INT NOT NULL FOREIGN KEY REFERENCES venda(id_venda),
+	id_produto INT NOT NULL FOREIGN KEY REFERENCES produto(id_produto),
+	quantidade INT NOT NULL,
+	valor_unitario DECIMAL(10,2) NOT NULL,
+	custo_unitario DECIMAL(10,2) NOT NULL,
+	valor_total DECIMAL(10,2) NOT NULL,
+	CONSTRAINT CK_item_venda_quantidade CHECK (quantidade > 0)
+)
+GO
+
+CREATE TABLE pagamento_venda(
+	id_pagamento INT NOT NULL IDENTITY(1,1) PRIMARY KEY,
+	id_venda INT NOT NULL FOREIGN KEY REFERENCES venda(id_venda),
+	id_forma_pagamento INT NOT NULL FOREIGN KEY REFERENCES forma_pagamento(id_forma_pagamento),
+	valor DECIMAL(10,2) NOT NULL,
+	CONSTRAINT CK_pagamento_venda_valor CHECK (valor > 0)
+)
+GO
+
+CREATE TABLE movimentacao_fiado(
+	id_movimentacao_fiado INT NOT NULL IDENTITY(1,1) PRIMARY KEY,
+	id_conta INT NOT NULL FOREIGN KEY REFERENCES conta_digital(id_conta),
+	id_usuario INT NOT NULL FOREIGN KEY REFERENCES usuario(id_usuario),
+	id_venda INT NULL FOREIGN KEY REFERENCES venda(id_venda),
+	id_forma_pagamento INT NULL FOREIGN KEY REFERENCES forma_pagamento(id_forma_pagamento),
+	tipo VARCHAR(10) NOT NULL,
+	valor DECIMAL(10,2) NOT NULL,
+	valor_pendente DECIMAL(10,2) NULL,
+	data_hora DATETIME2(0) NOT NULL DEFAULT SYSDATETIME(),
+	observacao VARCHAR(200) NULL,
+	CONSTRAINT CK_movimentacao_fiado_tipo CHECK (tipo in ('DEBITO', 'PAGAMENTO', 'ESTORNO')),
+	CONSTRAINT CK_movimentacao_fiado_valor CHECK (valor > 0),
+	CONSTRAINT CK_movimentacao_fiado_pendente CHECK (valor_pendente >= 0)
+)
+GO
+
+CREATE TABLE movimentacao_estoque(
+	id_movimentacao_estoque INT NOT NULL IDENTITY(1,1) PRIMARY KEY,
+	id_produto INT NOT NULL FOREIGN KEY REFERENCES produto(id_produto),
+	id_usuario INT NULL FOREIGN KEY REFERENCES usuario(id_usuario),
+	tipo VARCHAR(12) NOT NULL,
+	quantidade INT NOT NULL,
+	data_hora DATETIME2(0) NOT NULL DEFAULT SYSDATETIME(),
+	id_venda INT NULL FOREIGN KEY REFERENCES venda(id_venda),
+	id_item_entrada INT NULL FOREIGN KEY REFERENCES item_entrada(id_item_entrada),
+	observacao VARCHAR(200) NULL,
+	CONSTRAINT CK_movimentacao_estoque_tipo CHECK (tipo in ('ENTRADA', 'VENDA', 'COMANDA', 'AJUSTE', 'IMPLANTACAO', 'ESTORNO')),
+	CONSTRAINT CK_movimentacao_estoque_quantidade CHECK (quantidade != 0)
+)
+GO
+
+CREATE TABLE nfce(
+	id_nfce INT NOT NULL IDENTITY(1,1) PRIMARY KEY,
+	id_venda INT NOT NULL UNIQUE FOREIGN KEY REFERENCES venda(id_venda),
+	numero INT NOT NULL UNIQUE,
+	serie SMALLINT NOT NULL UNIQUE DEFAULT 1,
+	chave_acesso CHAR(44) NULL,
+	data_hora_emissao DATETIME2(0) NOT NULL DEFAULT SYSDATETIME(),
+	data_hora_transmissao DATETIME2(0) NULL,
+	status VARCHAR(12) NOT NULL DEFAULT 'PENDENTE',
+	contingencia BIT NOT NULL DEFAULT 0,
+	protocolo_autorizacao VARCHAR(20) NULL,
+	motivo_rejeicao VARCHAR(300) NULL,
+	valor_total_tributos DECIMAL(10,2) NOT NULL DEFAULT 0,
+	cpf_cliente VARCHAR(14) NULL,
+	arquivo_xml VARCHAR(260) NULL,
+	data_hora_cancelamento DATETIME2(0) NULL,
+	protocolo_cancelamento VARCHAR(20) NULL,
+	justificativa_cancelamento VARCHAR(255) NULL,
+	CONSTRAINT CK_nfce_status CHECK (status in ('PENDENTE', 'AUTORIZADA', 'REJEITADA', 'CANCELADA'))
 )
 GO
