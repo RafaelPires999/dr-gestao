@@ -8,6 +8,7 @@ nb-configuration.xml
 
 # Configuração local do banco (contém senha)
 db.properties
+database/login_app.sql
 
 # Sistema operacional
 Thumbs.db
