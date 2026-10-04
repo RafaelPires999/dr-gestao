@@ -9,4 +9,11 @@
         <maven.compiler.release>21</maven.compiler.release>
         <exec.mainClass>br.com.drgestao.DrGestao</exec.mainClass>
     </properties>
+    <dependencies>
+        <dependency>
+            <groupId>com.microsoft.sqlserver</groupId>
+            <artifactId>mssql-jdbc</artifactId>
+            <version>13.2.1.jre11</version>
+        </dependency>
+    </dependencies>
 </project>
