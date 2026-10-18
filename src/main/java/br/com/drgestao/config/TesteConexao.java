@@ -15,12 +15,13 @@ import java.sql.SQLException;
  */
 public class TesteConexao {
     public static void main(String[] args) throws Exception{
-        String sql = "SELECT COUNT(*) FROM forma_pagamento";
-        try(Connection con = ConnectionFactory.getConnection();
-        PreparedStatement ps = con.prepareStatement(sql);
-        ResultSet rs = ps.executeQuery()){
+        String sql = "SELECT @@SERVERNAME, DB_NAME()";
+        try (Connection con = ConnectionFactory.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
             rs.next();
-            System.out.println("Formas de pagamento: " + rs.getInt(1));
+            System.out.println("Servidor: " + rs.getString(1));
+            System.out.println("Banco: " + rs.getString(2));
         }
     }
 }
